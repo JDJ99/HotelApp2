@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, Text, Alert, TouchableOpacity } from 'react-native';
-import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
+import MapView, { PROVIDER_GOOGLE, Marker, Callout} from 'react-native-maps';
 import { useTheme } from './Theme';
 import LocationHandler from './LocationHandler';
 
@@ -13,15 +13,20 @@ import ContainerWrapper from './ContainerWrapper';
 
 const MapScreen = ({ navigation, route }) => {
 
+  
+  const markerRef = useRef(null)
+  const mapRef = useRef(null)
   const [currentLocation, setCurrentLocation] = useState(null);
   const { isDarkTheme, colors } = useTheme();
   const [hotels, setHotels] = useState([]);
+  const hasItem = route?.params?.item || false
+  
 
   useEffect(() => {
     // Update current location from the LocationHandler
     fetchHotelsHandler()
     
-  }, []);
+  }, [hasItem?.place_id]);
 
 
   const  onLocationUpdate = (location)=>{
@@ -39,23 +44,35 @@ const MapScreen = ({ navigation, route }) => {
       setCurrentLocation({
         latitude,
         longitude,
-        latitudeDelta: 0.4,
-        longitudeDelta: 0.4,
+        latitudeDelta: 0.2,
+        longitudeDelta: 0.2,
         
 
       })
-      const data = await fetchHotels(latitude, longitude);
-      if(data){
-        const filteredHotels = data.results.filter(result => result.types.includes('lodging') || result.types.includes('hotel'));
-        setHotels(filteredHotels);
+      if(!hasItem){
+        const data = await fetchHotels(latitude, longitude);
+        if(data){
+          const filteredHotels = data.results.filter(result => result.types.includes('lodging') || result.types.includes('hotel'));
+          setHotels(filteredHotels);
+        }
       }
-
+      setTimeout(() => {
+        mapRef.current?.fitToElements({
+          animated: true,
+          edgePadding: {
+            bottom: 50,
+            left: 50,
+            right: 50,
+            top: 50,
+          },
+        });
+      }, 500);
     }, (error)=>{
       console.log(error)
     });
   };
 
-  console.log(currentLocation,"<-->")
+  
 
 
   return (
@@ -65,12 +82,26 @@ const MapScreen = ({ navigation, route }) => {
       {currentLocation?.latitude ? (
         <>
           <MapView
+            ref={mapRef}
             style={StyleSheet.absoluteFillObject}
             provider={PROVIDER_GOOGLE}
             region={currentLocation}
           >
             
             <Marker coordinate={currentLocation} title='My Location' pinColor='green'  />
+            {
+              !!hasItem && (
+                <Marker
+                  ref={markerRef}
+                  coordinate={{
+                    latitude: hasItem.geometry.location.lat,
+                    longitude: hasItem.geometry.location.lng,
+                  }}
+                  title={hasItem?.name}
+                />
+
+              )
+            }
             
             {hotels.map((hotel, index) => (
               <Marker

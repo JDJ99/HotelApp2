@@ -63,7 +63,7 @@ const ListScreen = () => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchHotels();
+    fetchHotelsHandler();
     setRefreshing(false);
   };
 
@@ -87,6 +87,11 @@ const ListScreen = () => {
     setLikedItemsID(data)
   }
 
+  const navigateToSpecificItem = (item)=>{
+    
+    navigation.navigate("SingleMapScreen",{item})
+  }
+
   const hotelsFilter = useMemo(() => {
     if(showLikedOnly){
       return hotels.filter(hotel => likedItemsID.includes(hotel.place_id) )
@@ -95,6 +100,7 @@ const ListScreen = () => {
     }
     
   }, [showLikedOnly, hotels, likedItemsID])
+  
 
   return (
     <ContainerWrapper>
@@ -123,6 +129,7 @@ const ListScreen = () => {
               <Card.Actions>
                   
                   <TouchableOpacity style={{borderWidth: 1, borderRadius: 100, paddingHorizontal: 20, height: 35, alignItems: 'center', justifyContent: 'center'}} onPress={() => {
+                    navigateToSpecificItem(item)
                     // navigation.navigate('Marker', { lat: item.geometry.location.lat, long: item.geometry.location.lng, desc: item.name, address: item.vicinity })
                   }}>
                     <Feather name="map-pin" size={22} color="blue" />

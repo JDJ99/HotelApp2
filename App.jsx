@@ -25,7 +25,11 @@ const App = () => {
   return (
     <ThemeProvider>
       <NavigationContainer theme={MyTheme}>
-        <MainTabs />
+        <Stack.Navigator>
+          <Stack.Screen options={{ headerShown: false }} name='MainTabs' component={MainTabs} />
+          <Stack.Screen name='SingleMapScreen' options={{ title: "Detail" }} component={MapScreen} />
+        </Stack.Navigator>
+        {/* <MainTabs /> */}
       </NavigationContainer>
     </ThemeProvider>
   );
@@ -70,7 +74,7 @@ const MainTabs = () => {
         }}
       />
       <Tab.Screen
-        name="SettingsScreen"
+        name="SettingScreen"
         component={SettingScreen}
         options={{
           tabBarLabel: 'Settings',

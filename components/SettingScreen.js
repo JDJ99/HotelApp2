@@ -8,22 +8,33 @@ const SettingScreen = () => {
 
   return (
     <ContainerWrapper>
-        <Text style={[styles.text,{color: colors.text}]}>Dark Mode</Text>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Text style={[styles.text, { color: colors.text }]}>Dark Mode</Text>
         <Switch
           value={isDarkTheme}
           onValueChange={toggleTheme}
-          trackColor={{ false: '#767577', true: '#81b0ff' }}
-          thumbColor={isDarkTheme ? '#f5dd4b' : '#f4f3f4'}
+          trackColor={{ false: colors.trackFalse, true: colors.trackTrue }}
+          thumbColor={isDarkTheme ? colors.thumbTrue : colors.thumbFalse}
         />
+      </View>
     </ContainerWrapper>
   );
 };
 
 const styles = StyleSheet.create({
-  
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginVertical: 10,
+    elevation: 2,
+  },
   text: {
-    fontSize: 20,
-    marginBottom: 20,
+    fontSize: 18,
+    fontWeight: '500',
   },
 });
 
