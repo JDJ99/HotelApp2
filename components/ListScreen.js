@@ -1,60 +1,54 @@
-import React, { useEffect, useState } from 'react';
-import { View, FlatList, StyleSheet, RefreshControl, Alert, Linking, TextInput, Button as RNButton } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, FlatList, StyleSheet, RefreshControl, Alert, Linking, TextInput, Button as RNButton, TouchableOpacity, Pressable } from 'react-native';
 import { Avatar, Card, Text, Appbar, Button } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Feather from 'react-native-vector-icons/Feather';
 import Entypo from 'react-native-vector-icons/Entypo';
 import Geolocation from '@react-native-community/geolocation';
+import { MAP_API_KEY } from '../utils/constants';
+import { fetchHotels } from '../utils/api';
+import { getUserLocation } from '../utils/helper';
+import ContainerWrapper from './ContainerWrapper';
 
-const API_KEY = 'sAIzaSyCJagPVMH9H_zJjUOFvL_dR84gGjEIk1t8';
+
 
 const LeftContent = props => <Avatar.Icon {...props} icon="map" />;
 
 const ListScreen = () => {
+
   const navigation = useNavigation();
   const [refreshing, setRefreshing] = useState(false);
   const [hotels, setHotels] = useState([]);
   const [theme, setTheme] = useState("light");
+  const [likedItemsID, setLikedItemsID] = useState([])
+  const [showLikedOnly, setShowLikedOnly] = useState(false)
 
-  const fetchHotels = async (latitude, longitude) => {
-    try {
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=10000&type=lodging&keyword=hotel&key=${API_KEY}`
-      );
-      const data = await response.json();
-      console.log("Response from Google Places API:", data);
-      if (data.status === 'OK') {
-        const filteredHotels = data.results.filter(result => result.types.includes('lodging') || result.types.includes('hotel'));
-        setHotels(filteredHotels);
-      } else {
-        console.error('Error fetching hotels:', data.status);
-        Alert.alert('Error', 'Failed to fetch hotels. Please try again later.');
-      }
-    } catch (error) {
-      console.error('Error fetching hotels:', error);
-      Alert.alert('Error', 'Failed to fetch hotels. Please check your network connection.');
-    }
-  };
 
-  const getCurrentLocation = () => {
-    Geolocation.getCurrentPosition(
-      position => {
-        const { latitude, longitude } = position.coords;
-        fetchHotels(latitude, longitude);
-      },
-      error => {
-        console.error('Error getting location:', error);
-        Alert.alert('Error', 'Failed to get current location. Please enable location services.');
-      },
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 }
-    );
-  };
 
   useEffect(() => {
-    getCurrentLocation();
+    fetchHotelsHandler();
     getTheme();
+    getLikedItemsFromAsync();
   }, []);
+
+  const fetchHotelsHandler = async() => {
+
+    getUserLocation(async(position)=>{
+        
+      const { latitude, longitude } = position;
+      const data = await fetchHotels(latitude, longitude);
+      if(data){
+        const filteredHotels = data.results.filter(result => result.types.includes('lodging') || result.types.includes('hotel'));
+        setHotels(filteredHotels);
+      }
+
+    }, (error)=>{
+      console.log(error)
+    });
+  };
+
+
 
   const getTheme = async () => {
     try {
@@ -69,53 +63,93 @@ const ListScreen = () => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    getCurrentLocation();
+    fetchHotels();
     setRefreshing(false);
   };
 
-  const navigateToMap = () => {
-    navigation.navigate('Map', { hotels }); 
-  };
+  const getLikedItemsFromAsync = async ()=>{
+    const likedItemsFromAsync = await AsyncStorage.getItem('likedItems');
+    if(likedItemsFromAsync){
+      setLikedItemsID(JSON.parse(likedItemsFromAsync))
+    }
+
+  }
+
+  const likeHandler = async(item)=>{
+    let data = [...likedItemsID]
+    if(likedItemsID.includes(item.place_id)){
+      data = likedItemsID.filter(likedItem => likedItem !== item.place_id)
+    }else{
+      data = [...likedItemsID, item?.place_id]
+      
+    }
+    AsyncStorage.setItem("likedItems", JSON.stringify(data))
+    setLikedItemsID(data)
+  }
+
+  const hotelsFilter = useMemo(() => {
+    if(showLikedOnly){
+      return hotels.filter(hotel => likedItemsID.includes(hotel.place_id) )
+    }else{
+      return hotels
+    }
+    
+  }, [showLikedOnly, hotels, likedItemsID])
 
   return (
-    <View style={styles.container}>
-      <Appbar.Header style={{ backgroundColor: theme === 'light' ? '#FFFFFF' : '#000000' }}>
-        <Appbar.Content title="Hotels Near You" />
-      </Appbar.Header>
-      <FlatList
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        data={hotels}
-        renderItem={({ item }) => (
-          <Card style={{ backgroundColor: theme === 'light' ? '#FFFFFF' : '#000000' }}>
-            <Card.Title
-              title={<Text style={{ color: theme === 'light' ? '#000000' : '#FFFFFF' }}>{item.name}</Text>}
-              subtitle={<Text style={{ color: theme === 'light' ? '#000000' : '#FFFFFF' }}>{item.vicinity}</Text>}
-              left={LeftContent}
-            />
-            <Card.Cover source={{ uri: item.photos ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${item.photos[0].photo_reference}&key=${API_KEY}` : 'https://via.placeholder.com/150' }} />
-            <Card.Actions>
-              
-              <Button onPress={() => navigation.navigate('Marker', { lat: item.geometry.location.lat, long: item.geometry.location.lng, desc: item.name, address: item.vicinity })}>
-                <Feather name="map-pin" size={30} color="blue" />
-              </Button>
-              <Button onPress={() => Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${item.geometry.location.lat},${item.geometry.location.lng}`)}>
-                <Entypo name="direction" size={30} color="#422040" />
-              </Button>
-            </Card.Actions>
-          </Card>
-        )}
-        keyExtractor={item => item.place_id}
-      />
-    </View>
+    <ContainerWrapper>
+      <View style={styles.container}>
+        <Appbar.Header style={{ backgroundColor: theme === 'light' ? '#FFFFFF' : '#000000' }}>
+          <Appbar.Content title="Hotels Near You" />
+          <Pressable onPress={()=>{setShowLikedOnly(!showLikedOnly)}} >
+            <Text style={{textDecorationLine: 'underline', color: showLikedOnly?"red": "black" }} >Liked</Text>
+          </Pressable>
+        </Appbar.Header>
+        
+        <FlatList
+          // style={{paddingTop: 20}}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          data={hotelsFilter}
+          renderItem={({ item }) => (
+            <Card style={{marginHorizontal: 10, marginBottom: 10 ,backgroundColor: theme === 'light' ? '#FFFFFF' : '#000000' }}>
+              <Card.Title
+                title={<Text style={{ color: theme === 'light' ? '#000000' : '#FFFFFF' }}>{item.name}</Text>}
+                subtitle={<Text style={{ color: theme === 'light' ? '#000000' : '#FFFFFF' }}>{item.vicinity}</Text>}
+                left={LeftContent}
+              />
+              <Card.Cover source={{ uri: item.photos ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${item.photos[0].photo_reference}&key=${MAP_API_KEY}` : 'https://via.placeholder.com/150' }} />
+              <Card.Actions>
+                  
+                  <TouchableOpacity style={{borderWidth: 1, borderRadius: 100, paddingHorizontal: 20, height: 35, alignItems: 'center', justifyContent: 'center'}} onPress={() => {
+                    // navigation.navigate('Marker', { lat: item.geometry.location.lat, long: item.geometry.location.lng, desc: item.name, address: item.vicinity })
+                  }}>
+                    <Feather name="map-pin" size={22} color="blue" />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity style={{borderWidth: 1,borderColor: "#5E02E7", backgroundColor: "#5E02E7", borderRadius: 100, paddingHorizontal: 20, height: 35, alignItems: 'center', justifyContent: 'center'}} onPress={() => Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${item.geometry.location.lat},${item.geometry.location.lng}`)}>
+                    <Entypo name="direction" size={22} color="#422040" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={{borderWidth: 1, borderRadius: 100,paddingHorizontal: 20, height: 35, alignItems: 'center', justifyContent: 'center'}} onPress={()=>{likeHandler(item)}}>
+                    <Entypo name="heart" size={22} color = {likedItemsID.includes(item.place_id)?"red" :"gray"} />
+                  </TouchableOpacity>
+              </Card.Actions>
+            </Card>
+          )}
+          keyExtractor={item => item.place_id}
+        />
+      </View>
+    </ContainerWrapper>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 50
+    paddingTop: 10,
+
   },
 });
 

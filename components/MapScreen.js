@@ -3,34 +3,76 @@ import { StyleSheet, View, Text, Alert, TouchableOpacity } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
 import { useTheme } from './Theme';
 import LocationHandler from './LocationHandler';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import Feather from 'react-native-vector-icons/Feather';
+
+import Geolocation from '@react-native-community/geolocation';
+import { MAP_API_KEY } from '../utils/constants';
+import { getUserLocation } from '../utils/helper';
+import { fetchHotels } from '../utils/api';
+import ContainerWrapper from './ContainerWrapper';
+
 
 const MapScreen = ({ navigation, route }) => {
+
   const [currentLocation, setCurrentLocation] = useState(null);
-  const { isDarkTheme, toggleTheme } = useTheme();
+  const { isDarkTheme, colors } = useTheme();
+  const [hotels, setHotels] = useState([]);
 
   useEffect(() => {
     // Update current location from the LocationHandler
-    if (route.params?.location) {
-      setCurrentLocation(route.params.location);
+    fetchHotelsHandler()
+    
+  }, []);
+
+
+  const  onLocationUpdate = (location)=>{
+    if(location){
+        // setCurrentLocation(location)
+        // console.log(location)
     }
-  }, [route.params?.location]);
+  }
+
+  const fetchHotelsHandler = async() => {
+
+    getUserLocation(async(position)=>{
+        
+      const { latitude, longitude } = position;
+      setCurrentLocation({
+        latitude,
+        longitude,
+        latitudeDelta: 0.4,
+        longitudeDelta: 0.4,
+        
+
+      })
+      const data = await fetchHotels(latitude, longitude);
+      if(data){
+        const filteredHotels = data.results.filter(result => result.types.includes('lodging') || result.types.includes('hotel'));
+        setHotels(filteredHotels);
+      }
+
+    }, (error)=>{
+      console.log(error)
+    });
+  };
+
+  console.log(currentLocation,"<-->")
+
 
   return (
-    <View style={isDarkTheme ? darkStyles.container : styles.container}>
-      <LocationHandler /> 
-      {currentLocation ? (
+    
+    <ContainerWrapper>
+      <LocationHandler onLocationUpdate={onLocationUpdate} /> 
+      {currentLocation?.latitude ? (
         <>
           <MapView
             style={StyleSheet.absoluteFillObject}
             provider={PROVIDER_GOOGLE}
-            initialRegion={currentLocation}
+            region={currentLocation}
           >
             
-            <Marker coordinate={currentLocation} />
+            <Marker coordinate={currentLocation} title='My Location' pinColor='green'  />
             
-            {route.params?.hotels.map((hotel, index) => (
+            {hotels.map((hotel, index) => (
               <Marker
                 key={index}
                 coordinate={{
@@ -38,32 +80,16 @@ const MapScreen = ({ navigation, route }) => {
                   longitude: hotel.geometry.location.lng,
                 }}
                 title={hotel.name}
-                description={`Price Level: ${hotel.price_level || 'N/A'}`}
-                onPress={() =>
-                  Alert.alert(
-                    hotel.name,
-                    `Price Level: ${hotel.price_level || 'N/A'}`,
-                  )
-                }
               />
             ))}
           </MapView>
-          <View style={styles.toggleButtonContainer}>
-            <TouchableOpacity onPress={toggleTheme}>
-              {isDarkTheme ? (
-                <MaterialIcons name="dark-mode" size={24} color="white" />
-              ) : (
-                <Feather name="sun" size={24} color="black" />
-              )}
-            </TouchableOpacity>
-          </View>
         </>
       ) : (
         <View style={styles.loading}>
           <Text>Loading...</Text> 
         </View>
       )}
-    </View>
+    </ContainerWrapper>
   );
 };
 
@@ -78,25 +104,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#fff',
-  },
-  toggleButtonContainer: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-  },
-});
-
-const darkStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: '#000',
-  },
-  loading: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#000',
   },
   toggleButtonContainer: {
     position: 'absolute',
