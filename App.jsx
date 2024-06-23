@@ -70,7 +70,7 @@ const MainTabs = () => {
         }}
       />
       <Tab.Screen
-        name="SettingsScreen"
+        name="SettingScreen"
         component={SettingScreen}
         options={{
           tabBarLabel: 'Settings',
