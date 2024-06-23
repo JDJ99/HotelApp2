@@ -1,6 +1,5 @@
 import 'react-native-gesture-handler';
 import React from 'react';
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { ThemeProvider, useTheme } from './components/Theme';
@@ -8,15 +7,24 @@ import ListScreen from './components/ListScreen';
 import MapScreen from './components/MapScreen';
 import SettingScreen from './components/SettingScreen';
 import AntDesign from 'react-native-vector-icons/AntDesign';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
+const MyTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: 'rgb(255, 45, 85)',
+  },
+};
+
 const App = () => {
   return (
     <ThemeProvider>
-      <NavigationContainer>
+      <NavigationContainer theme={MyTheme}>
         <MainTabs />
       </NavigationContainer>
     </ThemeProvider>
@@ -24,21 +32,21 @@ const App = () => {
 };
 
 const MainTabs = () => {
-  const { theme } = useTheme();
+  const { colors } = useTheme();
 
   return (
     <Tab.Navigator
       screenOptions={{
         tabBarStyle: {
-          backgroundColor: theme === 'dark' ? '#000' : '#fff',
+          backgroundColor: colors.bgColor,
         },
         tabBarLabelStyle: {
-          color: theme === 'dark' ? '#fff' : '#000',
+          color: colors.text,
         },
         headerStyle: {
-          backgroundColor: theme === 'dark' ? '#000' : '#fff',
+          backgroundColor: colors.bgColor,
         },
-        headerTintColor: theme === 'dark' ? '#fff' : '#000',
+        headerTintColor: colors.text
       }}
     >
       <Tab.Screen
